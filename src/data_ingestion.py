@@ -20,3 +20,9 @@ def serialize_data(raw_json: str, file_name: str):
     
     with open(f"data/raw_data/{today_date}/{file_name}", "w") as fd:
         fd.write(raw_json)
+
+
+def get_nantes_realtime_bicycle_data():
+    url = "https://data.nantesmetropole.fr/explore/dataset/244400404_stations-velos-libre-service-nantes-metropole-disponibilites/api/"
+    response = requests.request("GET", url)
+    serialize_data(response.text, "nantes_realtime_bicycle_data.json")

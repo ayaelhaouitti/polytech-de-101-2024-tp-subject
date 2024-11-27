@@ -3,6 +3,7 @@ from datetime import datetime, date
 
 import duckdb
 import pandas as pd
+import requests
 
 today_date = datetime.now().strftime("%Y-%m-%d")
 PARIS_CITY_CODE = 1
@@ -56,31 +57,20 @@ def consolidate_station_data():
     con.execute("INSERT OR REPLACE INTO CONSOLIDATE_STATION SELECT * FROM paris_station_data_df;")
 
 
-def consolidate_city_data():
+def consolidate_geo_city_data():
+    con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
+    url = "https://geo.api.gouv.fr/communes?fields=nom,population,code&format=json"
+    response = requests.get(url)
+    data = response.json()
 
-    con = duckdb.connect(database = "data/duckdb/mobility_analysis.duckdb", read_only = False)
-    data = {}
-
-    with open(f"data/raw_data/{today_date}/paris_realtime_bicycle_data.json") as fd:
-        data = json.load(fd)
-
-    raw_data_df = pd.json_normalize(data)
-    raw_data_df["nb_inhabitants"] = None
-
-    city_data_df = raw_data_df[[
-        "code_insee_commune",
-        "nom_arrondissement_communes",
-        "nb_inhabitants"
-    ]]
+    city_data_df = pd.json_normalize(data)
     city_data_df.rename(columns={
-        "code_insee_commune": "id",
-        "nom_arrondissement_communes": "name"
+        "nom": "name",
+        "population": "nb_inhabitants",
+        "code": "id"
     }, inplace=True)
-    city_data_df.drop_duplicates(inplace = True)
 
     city_data_df["created_date"] = date.today()
-    print(city_data_df)
-    
     con.execute("INSERT OR REPLACE INTO CONSOLIDATE_CITY SELECT * FROM city_data_df;")
 
 
@@ -111,3 +101,44 @@ def consolidate_station_statement_data():
     }, inplace=True)
 
     con.execute("INSERT OR REPLACE INTO CONSOLIDATE_STATION_STATEMENT SELECT * FROM paris_station_statement_data_df;")
+
+
+
+
+def consolidate_nantes_station_data():
+    con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
+    data = {}
+
+    with open(f"data/raw_data/{today_date}/nantes_realtime_bicycle_data.json") as fd:
+        data = json.load(fd)
+
+    nantes_raw_data_df = pd.json_normalize(data)
+    nantes_raw_data_df["id"] = nantes_raw_data_df["stationcode"].apply(lambda x: f"2-{x}")
+    nantes_raw_data_df["address"] = None
+    nantes_raw_data_df["created_date"] = date.today()
+
+    nantes_station_data_df = nantes_raw_data_df[[
+        "id",
+        "stationcode",
+        "name",
+        "city",
+        "insee_code",
+        "address",
+        "longitude",
+        "latitude",
+        "is_installed",
+        "created_date",
+        "capacity"
+    ]]
+
+    nantes_station_data_df.rename(columns={
+        "stationcode": "code",
+        "name": "name",
+        "longitude": "longitude",
+        "latitude": "latitude",
+        "is_installed": "status",
+        "city": "city_name",
+        "insee_code": "city_code"
+    }, inplace=True)
+
+    con.execute("INSERT OR REPLACE INTO CONSOLIDATE_STATION SELECT * FROM nantes_station_data_df;")

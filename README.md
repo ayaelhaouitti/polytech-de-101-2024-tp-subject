@@ -105,8 +105,8 @@ def agregate_fact_station_statements():
 
 ### **Installation**
 ```bash
-git clone https://github.com/monrepo/projet-etl-velos.git
-cd projet-etl-velos
+git clone https://github.com/ayaelhaouitti/polytech-de-101-2024-tp-subject.git
+cd polytech-de-101-2024-tp-subject
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

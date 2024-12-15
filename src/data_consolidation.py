@@ -1,35 +1,37 @@
 import json
 from datetime import datetime, date
-
 import duckdb
 import pandas as pd
 
+# Date actuelle
 today_date = datetime.now().strftime("%Y-%m-%d")
 PARIS_CITY_CODE = 1
 
 def create_consolidate_tables():
-    con = duckdb.connect(database = "data/duckdb/mobility_analysis.duckdb", read_only = False)
+    """
+    But : Créer les tables de consolidation dans la base de données DuckDB à partir d'un fichier SQL.
+    """
+    con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
     with open("data/sql_statements/create_consolidate_tables.sql") as fd:
         statements = fd.read()
         for statement in statements.split(";"):
             print(statement)
             con.execute(statement)
 
-import pandas as pd
-import json
-import duckdb
-from datetime import date
-
 def consolidate_station_data():
-    today_date = date.today().strftime("%Y-%m-%d") 
+    """
+    But : Consolider les données des stations de vélos pour Paris, Nantes et Toulouse, 
+    en les insérant ou remplaçant dans la table CONSOLIDATE_STATION.
+    """
+    today_date = date.today().strftime("%Y-%m-%d")
     con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
 
-    # Charger les codes INSEE depuis le fichier JSON
+    # Charger les codes INSEE des communes depuis le fichier JSON
     with open(f"data/raw_data/{today_date}/commune_data.json", "r") as file:
         commune_data = json.load(file)
     commune_codes = {commune['nom'].lower(): commune['code'] for commune in commune_data}
 
-    # Traitement de Paris
+    # Traitement pour Paris
     data = {}
     with open(f"data/raw_data/{today_date}/paris_realtime_bicycle_data.json") as fd:
         data = json.load(fd)
@@ -65,7 +67,7 @@ def consolidate_station_data():
 
     con.execute("INSERT OR REPLACE INTO CONSOLIDATE_STATION SELECT * FROM paris_station_data_df;")
 
-    # Traitement de Nantes
+    # Traitement pour Nantes
     try:
         with open(f"data/raw_data/{today_date}/nantes_realtime_bicycle_data.json") as fd:
             data = json.load(fd)['results']
@@ -95,7 +97,7 @@ def consolidate_station_data():
             "position.lon": "longitude",
             "position.lat": "latitude",
             "status": "status",
-            "bike_stands": "capacitty"
+            "bike_stands": "capacity"
         }, inplace=True)
 
         con.register('nantes_station_data_df', nantes_station_data_df)
@@ -103,7 +105,7 @@ def consolidate_station_data():
     except Exception as e:
         print(f"Erreur Nantes: {e}")
 
-    # Traitement de Toulouse
+    # Traitement pour Toulouse
     try:
         with open(f"data/raw_data/{today_date}/toulouse_realtime_bicycle_data.json") as fd:
             data = json.load(fd)['results']
@@ -133,7 +135,7 @@ def consolidate_station_data():
             "position.lon": "longitude",
             "position.lat": "latitude",
             "status": "status",
-            "bike_stands": "capacitty"
+            "bike_stands": "capacity"
         }, inplace=True)
 
         con.register('toulouse_station_data_df', toulouse_station_data_df)
@@ -144,13 +146,16 @@ def consolidate_station_data():
     con.close()
 
 def consolidate_city_data():
+    """
+    But : Consolider les données des villes (Paris, Nantes, Toulouse) et les insérer dans la table CONSOLIDATE_CITY.
+    """
     con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
-    
+
     # Charger les données pour Paris
     with open(f"data/raw_data/{today_date}/paris_realtime_bicycle_data.json") as fd:
         paris_data = json.load(fd)
     paris_df = pd.json_normalize(paris_data)
-    paris_df["nb_inhabitants"] = None  # Cela peut être ajusté si vous avez les données de population
+    paris_df["nb_inhabitants"] = None  # Placeholder si les données de population ne sont pas disponibles
     paris_df = paris_df[[
         "code_insee_commune",
         "nom_arrondissement_communes",
@@ -169,10 +174,10 @@ def consolidate_city_data():
     commune_df.rename(columns={'nom': 'name', 'code': 'id', 'population': 'nb_inhabitants'}, inplace=True)
 
     # Filtrer pour obtenir seulement Nantes et Toulouse
-    nantes_toulouse_df = commune_df[commune_df['id'].isin(['44109', '31555'])]  # Assurez-vous que les codes sont corrects
+    nantes_toulouse_df = commune_df[commune_df['id'].isin(['44109', '31555'])]
     nantes_toulouse_df['created_date'] = date.today()
 
-    # Combinez les données de Paris, Nantes et Toulouse
+    # Combiner les données de Paris, Nantes et Toulouse
     combined_df = pd.concat([paris_df, nantes_toulouse_df])
     combined_df.drop_duplicates(inplace=True)
 
@@ -184,16 +189,19 @@ def consolidate_city_data():
     con.close()
 
 def consolidate_station_statement_data():
+    """
+    But : Consolider les données des états des stations (vélos disponibles, docks disponibles, etc.) 
+    pour Paris, Nantes et Toulouse dans la table CONSOLIDATE_STATION_STATEMENT.
+    """
     today_date = date.today().strftime("%Y-%m-%d")
     con = duckdb.connect(database="data/duckdb/mobility_analysis.duckdb", read_only=False)
 
-    # Traitement de Paris
+    # Traitement pour Paris
     try:
         with open(f"data/raw_data/{today_date}/paris_realtime_bicycle_data.json") as fd:
             data = json.load(fd)
 
         paris_raw_data_df = pd.json_normalize(data)
-        # Correction: Utiliser "stationcode" avec le bon format
         paris_raw_data_df["station_id"] = paris_raw_data_df["stationcode"].apply(lambda x: f"PARIS-{x}")
         paris_raw_data_df["created_date"] = today_date
         
@@ -216,7 +224,7 @@ def consolidate_station_statement_data():
     except Exception as e:
         print(f"Erreur Paris: {e}")
 
-    # Traitement de Nantes
+        # Traitement pour Nantes
     try:
         with open(f"data/raw_data/{today_date}/nantes_realtime_bicycle_data.json") as fd:
             data = json.load(fd)['results']
@@ -244,7 +252,7 @@ def consolidate_station_statement_data():
     except Exception as e:
         print(f"Erreur Nantes: {e}")
 
-    # Traitement de Toulouse
+    # Traitement pour Toulouse
     try:
         with open(f"data/raw_data/{today_date}/toulouse_realtime_bicycle_data.json") as fd:
             data = json.load(fd)['results']
@@ -272,4 +280,7 @@ def consolidate_station_statement_data():
     except Exception as e:
         print(f"Erreur Toulouse: {e}")
 
+    # Fermeture de la connexion à la base de données
     con.close()
+
+   

@@ -9,7 +9,6 @@ Ce projet propose un pipeline ETL complet pour l'ingestion, la consolidation et 
 - **Ingestion des Données :** Collecter les données open-source de Paris, Nantes et Toulouse.
 - **Consolidation des Données :** Organiser et structurer les données dans une base DuckDB.
 - **Enrichissement des Données :** Ajouter les informations officielles depuis l’API gouvernementale "Open Data Communes".
-- **Modélisation Dimensionnelle :** Créer un modèle pour faciliter l'analyse.
 - **Agrégation des Données :** Produire des statistiques utiles sur la disponibilité des vélos.
 
 ---
@@ -29,8 +28,6 @@ Ce projet propose un pipeline ETL complet pour l'ingestion, la consolidation et 
 /sql_statements
     ├── create_agregate_tables.sql  # Script SQL pour créer les tables d'agrégation
     └── create_consolidate_tables.sql # Script SQL pour créer les tables de consolidation
-.venv/                              # Environnement virtuel Python
-.gitignore                          # Fichiers ignorés par Git
 requirements.txt                    # Dépendances Python
 README.md                           # Documentation
 ```
